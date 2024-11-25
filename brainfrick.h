@@ -14,9 +14,10 @@ struct bf_t {
     size_t pos;
 };
 
-void interpret_code(const char*);
-void init_bf();
-void end_bf();
-void set_outbuf(size_t);
+void interpret_code(const char*, bool);
+void init_bf(void);
+void end_bf(void);
+void set_frame_size(size_t);
+void init_display(void);
 
 #endif

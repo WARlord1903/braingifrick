@@ -5,7 +5,10 @@ import os
 import sys
 from time import sleep
 from math import sqrt
-from _brainfrick.lib import interpret_code, init_bf, end_bf, set_outbuf
+from _brainfrick.lib import interpret_code, init_bf, end_bf, set_frame_size, init_display
+import atexit
+
+atexit.register(end_bf)
 
 ascii_luminosity_chars =  r" `.-':_,^=;><+!rc*/z?sLTv)J7(|Fi{C}fI31tlu[neoZ5Yxjya]2ESwqkP6h9d4VpOGbUAKXHm8RD#$Bg0MNWQ%&@"
 ascii_luminosity_vals = [0, 0.0751, 0.0829, 0.0848, 0.1227, 0.1403, 0.1559, 0.185, 0.2183, 0.2417, 0.2571, 0.2852, 0.2902, 0.2919, 0.3099, 0.3192, 0.3232, 0.3294, 0.3384, 0.3609, 0.3619, 0.3667, 0.3737, 0.3747, 0.3838, 0.3921, 0.396, 0.3984, 0.3993, 0.4075, 0.4091, 0.4101, 0.42, 0.423, 0.4247, 0.4274, 0.4293, 0.4328, 0.4382, 0.4385, 0.442, 0.4473, 0.4477, 0.4503, 0.4562, 0.458, 0.461, 0.4638, 0.4667, 0.4686, 0.4693, 0.4703, 0.4833, 0.4881, 0.4944, 0.4953, 0.4992, 0.5509, 0.5567, 0.5569, 0.5591, 0.5602, 0.5602, 0.565, 0.5776, 0.5777, 0.5818, 0.587, 0.5972, 0.5999, 0.6043, 0.6049, 0.6093, 0.6099, 0.6465, 0.6561, 0.6595, 0.6631, 0.6714, 0.6759, 0.6809, 0.6816, 0.6925, 0.7039, 0.7086, 0.7235, 0.7302, 0.7332, 0.7602, 0.7834, 0.8037, 0.9999]
@@ -276,6 +279,8 @@ width = 100
 inverted = True
 loop = False
 img_path = ''
+out_path = ''
+replay = ''
 
 for i, a in enumerate(sys.argv):
     if a in ['-f', '--framerate']:
@@ -288,8 +293,12 @@ for i, a in enumerate(sys.argv):
         loop = True
     elif a in ['-p', '--path']:
         img_path = sys.argv[i+1]
+    elif a in ['-o', '--outfile']:
+        out_path = sys.argv[i+1]
+    elif a in ['-r', '--replay']:
+        replay = sys.argv[i+1]
 
-if img_path == '':
+if img_path == '' and replay == '':
     print('No image/video path supplied!')
     sys.exit(1)
 
@@ -391,22 +400,46 @@ def ascii_to_brainfrick(ascii):
     return (code + ('<' if code[-1] == '>' else '')).replace(']', ']\n').split('\n')
 
 
-
-im = ascii_to_brainfrick(image_to_ascii(img_path, width))
 init_bf()
-if isinstance(im[0], list):
-    set_outbuf(''.join(im[0]).count('.'))
-    while True:
-        for frame in im:
-            for line in frame:
-                interpret_code(line.encode('ascii'))
-            sleep(1 / framerate)
-            os.system('clear')
-        if not loop:
-            break
-        init_bf()
-else:
-    for line in im:
-        interpret_code(line.encode('ascii'))
+if replay == '':
+    im = ascii_to_brainfrick(image_to_ascii(img_path, width))
 
-end_bf()
+
+    if out_path != '':
+        with open(out_path, 'w') as file:
+            if isinstance(im[0], list):
+                for frame in im:
+                    file.write(''.join(frame))
+                    file.write('\n')
+            else:
+                file.write(''.join(im))
+
+    if isinstance(im[0], list):
+        set_frame_size(''.join(im[0]).count('.'))
+        init_display()
+        while True:
+            for frame in im:
+                for line in frame:
+                    interpret_code(line.encode('ascii'), True)
+                sleep(1 / framerate)
+            if not loop:
+                break
+            init_bf()
+    else:
+        set_frame_size(''.join(im).count('.'))
+        for line in im:
+            interpret_code(line.encode('ascii'), False)
+
+else:
+    with open(replay, 'r') as file:
+        frames = file.read().split('\n')
+        set_frame_size(frames[0].count('.'))
+        if len(frames) > 1:
+            init_display()
+        while True:
+            for frame in frames:
+                interpret_code(frame.encode('ascii'), (True if len(frames) > 1 else False))
+                sleep(1 / framerate)
+            if not loop or len(frames) == 1:
+                break
+            init_bf()
