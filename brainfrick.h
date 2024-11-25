@@ -14,6 +14,9 @@ struct bf_t {
     size_t pos;
 };
 
-void interpret_code(const char*, bool, bool);
+void interpret_code(const char*);
+void init_bf();
+void end_bf();
+void set_outbuf(size_t);
 
 #endif
