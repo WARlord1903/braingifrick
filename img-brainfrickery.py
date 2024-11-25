@@ -1,12 +1,12 @@
 from pathlib import Path
 from PIL import Image
 import cv2
-import os
 import sys
 from time import sleep
 from math import sqrt
 from _brainfrick.lib import interpret_code, init_bf, end_bf, set_frame_size, init_display
 import atexit
+import multiprocessing
 
 atexit.register(end_bf)
 
@@ -281,22 +281,25 @@ loop = False
 img_path = ''
 out_path = ''
 replay = ''
+threads = 1
 
 for i, a in enumerate(sys.argv):
     if a in ['-f', '--framerate']:
         framerate = int(sys.argv[i+1])
     elif a in ['-w', '--width']:
         width = int(sys.argv[i+1])
-    elif a in ['-i', '--invert']:
+    elif a in ['-x', '--invert']:
         inverted = False
     elif a in ['-l', '--loop']:
         loop = True
-    elif a in ['-p', '--path']:
+    elif a in ['-i', '--infile']:
         img_path = sys.argv[i+1]
     elif a in ['-o', '--outfile']:
         out_path = sys.argv[i+1]
     elif a in ['-r', '--replay']:
         replay = sys.argv[i+1]
+    elif a in ['-p', '--processes']:
+        threads = int(sys.argv[i+1])
 
 if img_path == '' and replay == '':
     print('No image/video path supplied!')
@@ -312,23 +315,53 @@ def nearest_match(val, supply):
             index = i
     return index
 
+
 def image_to_ascii(image_path, new_width=100, arr=False):
     if isinstance(image_path, str) and image_path[-4:] in ['.mp4', '.avi', '.mov', '.mkv', '.gif']:
         print('Processing frames...')
         
-        cap = cv2.VideoCapture(image_path)
-        ret = True
-        ascii_frames = []
+        global threads
 
-        while ret:
-            ret, frame = cap.read()
-            if not ret:
-                break
-            ascii_frames.append(image_to_ascii(frame, new_width, True))
-            print(len(ascii_frames))
-        
-        print('Done!')
-        return ascii_frames
+        def process_video(cap, thread_number, frame_lists):
+            start = int(num_frames / threads * thread_number)
+            cap.set(cv2.CAP_PROP_POS_FRAMES, start)
+
+            while start < int(num_frames / threads * (thread_number + 1)):
+                print(start)
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                frame_lists[thread_number].append(image_to_ascii(frame, new_width, True))
+                start += 1
+
+        with multiprocessing.Manager() as manager:  
+            frame_lists = manager.list()
+            for t in range(threads):
+                frame_lists.append(manager.list())
+
+            cap = cv2.VideoCapture(image_path)
+            num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                
+            processes = []
+            for t in range(threads):
+                processes.append(multiprocessing.Process(target=process_video, args=(cap, t, frame_lists)))
+
+            for p in processes:
+                p.start()
+
+            for p in processes:
+                p.join()
+
+            ascii_frames = []
+            for frame_list in frame_lists:
+                ascii_frames.extend(list(frame_list))
+
+            print(ascii_frames)
+
+            print('Done!')
+
+            return ascii_frames
+
     else:
         global inverted
         image = None
