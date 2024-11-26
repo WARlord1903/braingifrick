@@ -281,7 +281,7 @@ loop = False
 img_path = ''
 out_path = ''
 replay = ''
-threads = 1
+processes = 1
 
 for i, a in enumerate(sys.argv):
     if a in ['-f', '--framerate']:
@@ -299,7 +299,7 @@ for i, a in enumerate(sys.argv):
     elif a in ['-r', '--replay']:
         replay = sys.argv[i+1]
     elif a in ['-p', '--processes']:
-        threads = int(sys.argv[i+1])
+        processes = int(sys.argv[i+1])
 
 if img_path == '' and replay == '':
     print('No image/video path supplied!')
@@ -315,48 +315,48 @@ def nearest_match(val, supply):
             index = i
     return index
 
+frame_count = 0
 
 def image_to_ascii(image_path, new_width=100, arr=False):
     if isinstance(image_path, str) and image_path[-4:] in ['.mp4', '.avi', '.mov', '.mkv', '.gif']:
         print('Processing frames...')
         
-        global threads
+        global processes
+        global frame_count
 
-        def process_video(cap, thread_number, frame_lists):
-            start = int(num_frames / threads * thread_number)
+        def process_video(process_number, frame_lists):
+            cap = cv2.VideoCapture(image_path)
+            start = int(frame_count / processes * process_number)
             cap.set(cv2.CAP_PROP_POS_FRAMES, start)
 
-            while start < int(num_frames / threads * (thread_number + 1)):
-                print(start)
+            while start < int(frame_count / processes * (process_number + 1)):
                 ret, frame = cap.read()
                 if not ret:
                     break
-                frame_lists[thread_number].append(image_to_ascii(frame, new_width, True))
+                frame_lists[process_number].append(image_to_ascii(frame, new_width, True))
                 start += 1
 
         with multiprocessing.Manager() as manager:  
             frame_lists = manager.list()
-            for t in range(threads):
+            for p in range(processes):
                 frame_lists.append(manager.list())
 
             cap = cv2.VideoCapture(image_path)
-            num_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 
-            processes = []
-            for t in range(threads):
-                processes.append(multiprocessing.Process(target=process_video, args=(cap, t, frame_lists)))
+            process_list = []
+            for p in range(processes):
+                process_list.append(multiprocessing.Process(target=process_video, args=(p, frame_lists)))
 
-            for p in processes:
+            for p in process_list:
                 p.start()
 
-            for p in processes:
+            for p in process_list:
                 p.join()
 
             ascii_frames = []
             for frame_list in frame_lists:
                 ascii_frames.extend(list(frame_list))
-
-            print(ascii_frames)
 
             print('Done!')
 
@@ -390,6 +390,7 @@ def ascii_to_brainfrick(ascii):
     if isinstance(ascii, list):
         print('Brainfrick-ifying frames...')
         frames = []
+        
         for frame in ascii:
             frames.append(ascii_to_brainfrick(frame))
         print('Done!')
@@ -433,46 +434,46 @@ def ascii_to_brainfrick(ascii):
     return (code + ('<' if code[-1] == '>' else '')).replace(']', ']\n').split('\n')
 
 
-init_bf()
-if replay == '':
-    im = ascii_to_brainfrick(image_to_ascii(img_path, width))
+if __name__ == '__main__':
+    init_bf()
+    if replay == '':
+        im = ascii_to_brainfrick(image_to_ascii(img_path, width))
 
+        if out_path != '':
+            with open(out_path, 'w') as file:
+                if isinstance(im[0], list):
+                    for frame in im:
+                        file.write(''.join(frame))
+                        file.write('\n')
+                else:
+                    file.write(''.join(im))
 
-    if out_path != '':
-        with open(out_path, 'w') as file:
-            if isinstance(im[0], list):
-                for frame in im:
-                    file.write(''.join(frame))
-                    file.write('\n')
-            else:
-                file.write(''.join(im))
-
-    if isinstance(im[0], list):
-        set_frame_size(''.join(im[0]).count('.'))
-        init_display()
-        while True:
-            for frame in im:
-                for line in frame:
-                    interpret_code(line.encode('ascii'), True)
-                sleep(1 / framerate)
-            if not loop:
-                break
-            init_bf()
-    else:
-        set_frame_size(''.join(im).count('.'))
-        for line in im:
-            interpret_code(line.encode('ascii'), False)
-
-else:
-    with open(replay, 'r') as file:
-        frames = file.read().split('\n')
-        set_frame_size(frames[0].count('.'))
-        if len(frames) > 1:
+        if isinstance(im[0], list):
+            set_frame_size(''.join(im[0]).count('.'))
             init_display()
-        while True:
-            for frame in frames:
-                interpret_code(frame.encode('ascii'), (True if len(frames) > 1 else False))
-                sleep(1 / framerate)
-            if not loop or len(frames) == 1:
-                break
-            init_bf()
+            while True:
+                for frame in im:
+                    for line in frame:
+                        interpret_code(line.encode('ascii'), True)
+                    sleep(1 / framerate)
+                if not loop:
+                    break
+                init_bf()
+        else:
+            set_frame_size(''.join(im).count('.'))
+            for line in im:
+                interpret_code(line.encode('ascii'), False)
+
+    else:
+        with open(replay, 'r') as file:
+            frames = file.read().split('\n')
+            set_frame_size(frames[0].count('.'))
+            if len(frames) > 1:
+                init_display()
+            while True:
+                for frame in frames:
+                    interpret_code(frame.encode('ascii'), (True if len(frames) > 1 else False))
+                    sleep(1 / framerate)
+                if not loop or len(frames) == 1:
+                    break
+                init_bf()
