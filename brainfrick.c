@@ -1,5 +1,9 @@
 #include "brainfrick.h"
-#include <ncurses.h>
+#ifndef _WIN32
+    #include <ncurses.h>
+#else
+    #include <ncurses/ncurses.h>
+#endif
 
 struct bf_t bf = {NULL, 0};
 char* frame = NULL;
