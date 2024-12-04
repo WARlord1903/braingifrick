@@ -1,30 +1,10 @@
 #include "brainfrick.h"
-#ifndef _WIN32
-    #include <ncurses.h>
-#else
-    #include <ncurses/ncurses.h>
-#endif
 
 struct bf_t bf = {NULL, 0};
 char* frame = NULL;
 size_t frame_size;
 
-void ptr_left(void){
-    if(bf.pos > 0)
-        --bf.pos;
-    else
-        bf.pos = BF_BUFFER_SIZE - 1;
-}
-
-void ptr_right(void){
-    if(bf.pos < BF_BUFFER_SIZE - 1)
-        ++bf.pos;
-    else
-        bf.pos = 0;
-
-}
-
-size_t parse_loop(const char* code, size_t start, bool buffering){
+size_t parse_loop(const char* code, size_t start, bool buffering, size_t framerate){
     size_t remaining_closing_brackets = 0;
     size_t i;
     for(i = start; i < strlen(code); i++){
@@ -42,21 +22,32 @@ size_t parse_loop(const char* code, size_t start, bool buffering){
     loop_contents[i - start] = '\0';
 
     while(bf.buf[bf.pos])
-        interpret_code(loop_contents, buffering);
+        interpret_code(loop_contents, buffering, framerate);
     
     free(loop_contents);
     return i;
 }
 
-void interpret_code(const char* code, bool buffering){
+void interpret_code(const char* code, bool buffering, size_t framerate){
     static size_t char_count = 0;
+    static struct timeb start = {0};
+    struct timeb end;
+    if(start.time == 0)
+        ftime(&start);
+
     for(size_t i = 0; i < strlen(code); i++){
         switch(code[i]){
             case '<':
-                ptr_left();
+                if(bf.pos > 0)
+                    --bf.pos;
+                else
+                    bf.pos = BF_BUFFER_SIZE - 1;
                 break;
             case '>':
-                ptr_right();
+                if(bf.pos < BF_BUFFER_SIZE - 1)
+                    ++bf.pos;
+                else
+                    bf.pos = 0;
                 break;
             case '+':
                 bf.buf[bf.pos]++;
@@ -68,10 +59,13 @@ void interpret_code(const char* code, bool buffering){
                 if(buffering){
                     frame[char_count++] = (char) bf.buf[bf.pos];
                     if(char_count == frame_size){
-                        frame[frame_size] = '\0';
                         mvprintw(0, 0, "%s", frame);
+                        ftime(&end);
+                        while((int) 1000. * (end.time - start.time) + (end.millitm - start.millitm) < 1000. * (1. / framerate))
+                            ftime(&end);
                         refresh();
                         char_count = 0;
+                        ftime(&start);
                     }
                 }
                 else
@@ -81,7 +75,7 @@ void interpret_code(const char* code, bool buffering){
                 bf.buf[bf.pos] = (uint8_t) fgetc(stdin);
                 break;
             case '[':
-                size_t end_pos = parse_loop(code, i, buffering);
+                size_t end_pos = parse_loop(code, i, buffering, framerate);
                 i = end_pos;
                 break;
         }
@@ -96,7 +90,8 @@ void init_bf(void){
 }
 
 void end_bf(void){
-    free(bf.buf);
+    if(bf.buf)
+        free(bf.buf);
     if(frame)
         free(frame);
     fflush(stdout);
