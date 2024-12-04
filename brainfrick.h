@@ -11,7 +11,6 @@
 #ifndef _WIN32
     #include <ncurses.h>
 #else
-    #define PDC_DLL_BUILD
     #include <ncurses/ncurses.h>
 #endif
 

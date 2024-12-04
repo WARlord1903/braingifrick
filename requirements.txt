@@ -1,4 +1,7 @@
+numpy
 opencv-python
 cffi
 pillow
 setuptools
+pydub
+simpleaudio

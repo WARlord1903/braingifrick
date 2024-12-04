@@ -9,8 +9,13 @@ if platform.system() == 'Windows':
     os.add_dll_directory('C:\\msys64\\mingw64\\bin')
     os.add_dll_directory(sys.exec_prefix)
 from _brainfrick.lib import interpret_code, init_bf, end_bf, init_display, set_frame_size
+import subprocess
 import atexit
 import multiprocessing
+import pathlib
+from pydub.playback import _play_with_simpleaudio
+from pydub import AudioSegment
+import threading
 
 
 atexit.register(end_bf)
@@ -280,12 +285,15 @@ factors = dict({
 })
 
 framerate = 60
-width = 100
+height = -1
+width = -1
 inverted = False
 loop = False
+extract_audio = False
 img_path = ''
 out_path = ''
 replay = ''
+audio_track = ''
 processes = 1
 
 for i, a in enumerate(sys.argv):
@@ -293,6 +301,8 @@ for i, a in enumerate(sys.argv):
         framerate = int(sys.argv[i+1])
     elif a in ['-w', '--width']:
         width = int(sys.argv[i+1])
+    elif a in ['-h', '--height']:
+        height = int(sys.argv[i+1])
     elif a in ['-x', '--invert']:
         inverted = True
     elif a in ['-l', '--loop']:
@@ -301,6 +311,10 @@ for i, a in enumerate(sys.argv):
         img_path = sys.argv[i+1]
     elif a in ['-o', '--outfile']:
         out_path = sys.argv[i+1]
+    elif a in ['-a', '--audio']:
+        extract_audio = True
+    elif a in ['--play-track']:
+        audio_track = sys.argv[i+1]
     elif a in ['-r', '--replay']:
         replay = sys.argv[i+1]
     elif a in ['-p', '--processes']:
@@ -322,7 +336,7 @@ def nearest_match(val, supply):
 
 frame_count = 0
 
-def process_video(image_path, frame_count, new_width, process_number, processes, frame_lists):
+def process_video(image_path, frame_count, w, h, process_number, processes, frame_lists):
 
     cap = cv2.VideoCapture(image_path)
     start = int(frame_count / processes * process_number)
@@ -332,10 +346,12 @@ def process_video(image_path, frame_count, new_width, process_number, processes,
         ret, frame = cap.read()
         if not ret:
             break
-        frame_lists[process_number].append(image_to_ascii(frame, new_width, True))
+        frame_lists[process_number].append(image_to_ascii(frame, True))
         start += 1
 
-def image_to_ascii(image_path, new_width=100, arr=False):
+def image_to_ascii(image_path, arr=False):
+    global width
+    global height
     if isinstance(image_path, str) and image_path[-4:] in ['.mp4', '.avi', '.mov', '.mkv', '.gif']:
         print('Processing frames...')
         
@@ -352,7 +368,7 @@ def image_to_ascii(image_path, new_width=100, arr=False):
                 
             process_list = []
             for p in range(processes):
-                process_list.append(multiprocessing.Process(target=process_video, args=(image_path, frame_count, new_width, p, processes, frame_lists)))
+                process_list.append(multiprocessing.Process(target=process_video, args=(image_path, frame_count, width, height, p, processes, frame_lists)))
 
             for p in process_list:
                 p.start()
@@ -375,10 +391,20 @@ def image_to_ascii(image_path, new_width=100, arr=False):
             image = Image.fromarray(image_path)
         else:
             image = Image.open(image_path)
-        width, height = image.size
-        aspect_ratio = height / width
-        new_height = int(aspect_ratio * new_width * 0.55)
-        image = image.resize((new_width, new_height))
+        iwidth, iheight = image.size
+        aspect_ratio = iheight / iwidth
+        if height == -1 and width > 0:
+            height = int(aspect_ratio * width * 0.55)
+            image = image.resize((width, height))
+        elif width == -1 and height > 0:
+            width = int(aspect_ratio * height * 0.55)
+            image = image.resize((width, height))
+        elif width > 0 and height > 0:
+            image = image.resize((width, height))
+        else:
+            width = 100
+            height = int(aspect_ratio * width * 0.55)
+            image = image.resize((100, height))
         image = image.convert('L')
 
         pixels = image.getdata()
@@ -386,7 +412,7 @@ def image_to_ascii(image_path, new_width=100, arr=False):
         for pixel in pixels:
             ascii_image += ascii_luminosity_chars[nearest_match(abs(1 * inverted - pixel / 255), ascii_luminosity_vals)]
         
-        ascii_image = '\n'.join(ascii_image[i:i + new_width] for i in range(0, len(ascii_image), new_width))
+        ascii_image = '\n'.join(ascii_image[i:i + width] for i in range(0, len(ascii_image), width))
 
         return ascii_image
 
@@ -441,9 +467,10 @@ def ascii_to_brainfrick(ascii):
 
 
 if __name__ == '__main__':
+    path = pathlib.Path(__file__).parent.resolve()
     init_bf()
     if replay == '':
-        im = ascii_to_brainfrick(image_to_ascii(img_path, width))
+        im = ascii_to_brainfrick(image_to_ascii(img_path))
 
         if out_path != '':
             with open(out_path, 'w') as file:
@@ -456,7 +483,15 @@ if __name__ == '__main__':
 
         if isinstance(im[0], list):
             set_frame_size(''.join(im[0]).count('.'))
+            if extract_audio:
+                print('Extracting audio...')
+                subprocess.call(f'ffmpeg -i {str(path / img_path)} -ab 160k -ac 2 -ar 44100 -vn {str(path / img_path)[:str(path / img_path).rfind('.')]}.wav')
+                print('Done!')
             init_display()
+            if extract_audio:
+                s = AudioSegment.from_file((str(path / audio_track)[:str(path / audio_track).rfind('.')] + '.wav').replace('\\', '/'), 'wav')
+                _play_with_simpleaudio(s)
+
             while True:
                 for frame in im:
                     for line in frame:
@@ -467,7 +502,7 @@ if __name__ == '__main__':
         else:
             set_frame_size(''.join(im).count('.'))
             for line in im:
-                interpret_code(line.encode('ascii'), False)
+                interpret_code(line.encode('ascii'), False, 0)
 
     else:
         with open(replay, 'r') as file:
@@ -475,6 +510,9 @@ if __name__ == '__main__':
             set_frame_size(frames[0].count('.'))
             if len(frames) > 1:
                 init_display()
+            if audio_track != '':
+                s = AudioSegment.from_file(str(path / audio_track).replace('\\', '/'), str(path / audio_track)[str(path / audio_track).find('.') + 1:])
+                _play_with_simpleaudio(s)
             while True:
                 for frame in frames:
                     interpret_code(frame.encode('ascii'), (True if len(frames) > 1 else False), framerate)
