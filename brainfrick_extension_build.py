@@ -3,7 +3,7 @@ import platform
 
 ffibuilder = FFI()
 
-ffibuilder.cdef('void interpret_code(const char*, bool, size_t);')
+ffibuilder.cdef('void interpret_code(const char*, bool, double);')
 ffibuilder.cdef('void init_bf(void);')
 ffibuilder.cdef('void end_bf(void);')
 ffibuilder.cdef('void set_frame_size(size_t s);')
