@@ -335,7 +335,7 @@ def nearest_match(val, supply):
 frame_count = 0
 
 def process_video(image_path, frame_count, w, h, process_number, processes, frame_lists):
-    cap = cv2.VideoCapture(image_path, cv2.CAP_DSHOW if platform.system() == 'Windows' else cv2.CAP_FFMPEG)
+    cap = cv2.VideoCapture(image_path, cv2.CAP_FFMPEG)
     start = int(frame_count / processes * process_number)
     cap.set(cv2.CAP_PROP_POS_FRAMES, start)
 
@@ -529,5 +529,3 @@ if __name__ == '__main__':
                 if not loop or len(frames) == 1:
                     break
                 init_bf()
-
-play.wait_done()

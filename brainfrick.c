@@ -30,11 +30,18 @@ size_t parse_loop(const char* code, size_t start, bool buffering, double framera
 
 void interpret_code(const char* code, bool buffering, double framerate){
     static size_t char_count = 0;
-    static struct timespec start = {0};
-    struct timespec end;
-
-    if(start.tv_sec == 0)
-        clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    #ifdef _WIN32
+        static struct timeb start = {0};
+        struct timeb end;
+        if(start.time == 0)
+            ftime(&start);
+        timeBeginPeriod(1);
+    #else
+        static struct timespec start = {0};
+        struct timespec end;
+        if(start.tv_sec == 0)
+            clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    #endif
 
     for(size_t i = 0; i < strlen(code); i++){
         switch(code[i]){
@@ -62,12 +69,20 @@ void interpret_code(const char* code, bool buffering, double framerate){
                     if(char_count == frame_size){
                         mvprintw(0, 0, "%s", frame);
                         refresh();
-                        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-                        struct timespec req;
-                        req.tv_sec = 0;
-                        req.tv_nsec = (1. / framerate * 1000000000) - (end.tv_nsec - start.tv_nsec);
-                        nanosleep(&req, NULL);
-                        clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+                        #ifndef _WIN32
+                            clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+                            struct timespec req;
+                            req.tv_sec = 0;
+                            req.tv_nsec = (1. / framerate * 1000000000) - (end.tv_nsec - start.tv_nsec);
+                            nanosleep(&req, NULL);
+                            clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+                        #else
+                            ftime(&end);
+                            int mtime = ((1. / framerate * 1000) - ((end.time - start.time) * 1000. + (end.millitm - start.millitm)));
+                            Sleep(mtime < 0 ? 0 : mtime);
+                            ftime(&start);
+                        #endif
+
                         char_count = 0;
                     }
                 }
