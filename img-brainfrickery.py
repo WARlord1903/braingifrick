@@ -1,30 +1,28 @@
 from PIL import Image
 import cv2
 import sys
-from time import sleep
 from math import sqrt
+import time
 import os
+import subprocess
 import platform
 if platform.system() == 'Windows':
     os.add_dll_directory('C:\\msys64\\mingw64\\bin')
     os.add_dll_directory(sys.exec_prefix)
+    from winsound import PlaySound, SND_FILENAME
+    import threading
+else:
+    from playsound import playsound
 from _brainfrick.lib import interpret_code, init_bf, end_bf, init_display, set_frame_size
-import subprocess
 import atexit
 import multiprocessing
 import pathlib
-from pydub.playback import _play_with_simpleaudio
-from pydub import AudioSegment
-import threading
-
-
 atexit.register(end_bf)
 
 ascii_luminosity_chars =  r" `.-':_,^=;><+!rc*/z?sLTv)J7(|Fi{C}fI31tlu[neoZ5Yxjya]2ESwqkP6h9d4VpOGbUAKXHm8RD#$Bg0MNWQ%&@"
 ascii_luminosity_vals = [0, 0.0751, 0.0829, 0.0848, 0.1227, 0.1403, 0.1559, 0.185, 0.2183, 0.2417, 0.2571, 0.2852, 0.2902, 0.2919, 0.3099, 0.3192, 0.3232, 0.3294, 0.3384, 0.3609, 0.3619, 0.3667, 0.3737, 0.3747, 0.3838, 0.3921, 0.396, 0.3984, 0.3993, 0.4075, 0.4091, 0.4101, 0.42, 0.423, 0.4247, 0.4274, 0.4293, 0.4328, 0.4382, 0.4385, 0.442, 0.4473, 0.4477, 0.4503, 0.4562, 0.458, 0.461, 0.4638, 0.4667, 0.4686, 0.4693, 0.4703, 0.4833, 0.4881, 0.4944, 0.4953, 0.4992, 0.5509, 0.5567, 0.5569, 0.5591, 0.5602, 0.5602, 0.565, 0.5776, 0.5777, 0.5818, 0.587, 0.5972, 0.5999, 0.6043, 0.6049, 0.6093, 0.6099, 0.6465, 0.6561, 0.6595, 0.6631, 0.6714, 0.6759, 0.6809, 0.6816, 0.6925, 0.7039, 0.7086, 0.7235, 0.7302, 0.7332, 0.7602, 0.7834, 0.8037, 0.9999]
 
 squares = [1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144, 169, 196, 225]
-
 factors = dict({
         0: [0],
         1: [1],
@@ -294,7 +292,7 @@ img_path = ''
 out_path = ''
 replay = ''
 audio_track = ''
-processes = 1
+processes = multiprocessing.cpu_count()
 
 for i, a in enumerate(sys.argv):
     if a in ['-f', '--framerate']:
@@ -337,8 +335,7 @@ def nearest_match(val, supply):
 frame_count = 0
 
 def process_video(image_path, frame_count, w, h, process_number, processes, frame_lists):
-
-    cap = cv2.VideoCapture(image_path)
+    cap = cv2.VideoCapture(image_path, cv2.CAP_DSHOW if platform.system() == 'Windows' else cv2.CAP_FFMPEG)
     start = int(frame_count / processes * process_number)
     cap.set(cv2.CAP_PROP_POS_FRAMES, start)
 
@@ -359,6 +356,7 @@ def image_to_ascii(image_path, arr=False):
         global frame_count
 
         with multiprocessing.Manager() as manager:  
+            start = time.time_ns()
             frame_lists = manager.list()
             for p in range(processes):
                 frame_lists.append(manager.list())
@@ -380,7 +378,9 @@ def image_to_ascii(image_path, arr=False):
             for frame_list in frame_lists:
                 ascii_frames.extend(list(frame_list))
 
-            print('Done!')
+            end = time.time_ns()
+
+            print(f'Completed in {(end - start) / 1000000000} seconds!')
 
             return ascii_frames
 
@@ -467,6 +467,8 @@ def ascii_to_brainfrick(ascii):
 
 
 if __name__ == '__main__':
+    s = None
+    play = None
     path = pathlib.Path(__file__).parent.resolve()
     init_bf()
     if replay == '':
@@ -485,20 +487,24 @@ if __name__ == '__main__':
             set_frame_size(''.join(im[0]).count('.'))
             if extract_audio:
                 print('Extracting audio...')
-                subprocess.call(f'ffmpeg -i {str(path / img_path)} -ab 160k -ac 2 -ar 44100 -vn {str(path / img_path)[:str(path / img_path).rfind('.')]}.wav')
+                with open(os.devnull, 'w') as fp:
+                    subprocess.run(['ffmpeg', '-y', '-i', str(path / img_path), '-ab', '160k', '-ac',  '2', '-ar',  '44100', '-vn', str(path / img_path)[:str(path / img_path).rfind('.')] + '.wav'], stdout=fp, stderr=fp)
                 print('Done!')
             init_display()
-            if extract_audio:
-                s = AudioSegment.from_file((str(path / audio_track)[:str(path / audio_track).rfind('.')] + '.wav').replace('\\', '/'), 'wav')
-                _play_with_simpleaudio(s)
 
             while True:
-                for frame in im:
-                    for line in frame:
-                        interpret_code(line.encode('ascii'), True, framerate)
-                if not loop:
-                    break
-                init_bf()
+                if extract_audio:
+                    if platform.system() == 'Windows':
+                        t = threading.Thread(target=PlaySound, args=(str(path / img_path)[:str(path / img_path).rfind('.')].replace('\\', '/') + '.wav', SND_FILENAME))
+                        t.start()
+                    else:
+                        playsound(str(path / img_path)[:str(path / img_path).rfind('.')].replace('\\', '/') + '.wav', False)
+                    for frame in im:
+                        for line in frame:
+                            interpret_code(line.encode('ascii'), True, framerate)
+                    if not loop:
+                        break
+                    init_bf()
         else:
             set_frame_size(''.join(im).count('.'))
             for line in im:
@@ -510,12 +516,18 @@ if __name__ == '__main__':
             set_frame_size(frames[0].count('.'))
             if len(frames) > 1:
                 init_display()
-            if audio_track != '':
-                s = AudioSegment.from_file(str(path / audio_track).replace('\\', '/'), str(path / audio_track)[str(path / audio_track).find('.') + 1:])
-                _play_with_simpleaudio(s)
+                
             while True:
+                if audio_track != '':
+                    if platform.system() == 'Windows':
+                        t = threading.Thread(target=PlaySound, args=(str(path / audio_track).replace('\\', '/'), SND_FILENAME))
+                        t.start()
+                    else:
+                        playsound(str(path / audio_track).replace('\\', '/'),  False)
                 for frame in frames:
                     interpret_code(frame.encode('ascii'), (True if len(frames) > 1 else False), framerate)
                 if not loop or len(frames) == 1:
                     break
                 init_bf()
+
+play.wait_done()

@@ -4,5 +4,4 @@ cffi
 pillow
 setuptools
 simpleaudio
-playsound
-pygobject
+winsound

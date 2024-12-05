@@ -17,4 +17,4 @@ ffibuilder.set_source("_brainfrick",
 
 
 if __name__ == "__main__":
-    ffibuilder.compile(verbose=True, target='_brainfrick.pyd')
+    ffibuilder.compile(verbose=True)

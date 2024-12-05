@@ -4,7 +4,7 @@ struct bf_t bf = {NULL, 0};
 char* frame = NULL;
 size_t frame_size;
 
-size_t parse_loop(const char* code, size_t start, bool buffering, size_t framerate){
+size_t parse_loop(const char* code, size_t start, bool buffering, double framerate){
     size_t remaining_closing_brackets = 0;
     size_t i;
     for(i = start; i < strlen(code); i++){
@@ -28,12 +28,13 @@ size_t parse_loop(const char* code, size_t start, bool buffering, size_t framera
     return i;
 }
 
-void interpret_code(const char* code, bool buffering, size_t framerate){
+void interpret_code(const char* code, bool buffering, double framerate){
     static size_t char_count = 0;
-    static struct timeb start = {0};
-    struct timeb end;
-    if(start.time == 0)
-        ftime(&start);
+    static struct timespec start = {0};
+    struct timespec end;
+
+    if(start.tv_sec == 0)
+        clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
     for(size_t i = 0; i < strlen(code); i++){
         switch(code[i]){
@@ -60,12 +61,14 @@ void interpret_code(const char* code, bool buffering, size_t framerate){
                     frame[char_count++] = (char) bf.buf[bf.pos];
                     if(char_count == frame_size){
                         mvprintw(0, 0, "%s", frame);
-                        ftime(&end);
-                        while((int) 1000. * (end.time - start.time) + (end.millitm - start.millitm) < 1000. * (1. / framerate))
-                            ftime(&end);
                         refresh();
+                        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+                        struct timespec req;
+                        req.tv_sec = 0;
+                        req.tv_nsec = (1. / framerate * 1000000000) - (end.tv_nsec - start.tv_nsec);
+                        nanosleep(&req, NULL);
+                        clock_gettime(CLOCK_MONOTONIC_RAW, &start);
                         char_count = 0;
-                        ftime(&start);
                     }
                 }
                 else
@@ -90,8 +93,7 @@ void init_bf(void){
 }
 
 void end_bf(void){
-    if(bf.buf)
-        free(bf.buf);
+    free(bf.buf);
     if(frame)
         free(frame);
     fflush(stdout);
