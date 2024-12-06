@@ -7,8 +7,6 @@ import os
 import subprocess
 import platform
 if platform.system() == 'Windows':
-    os.add_dll_directory('C:\\msys64\\mingw64\\bin')
-    os.add_dll_directory(sys.exec_prefix)
     from winsound import PlaySound, SND_FILENAME
     import threading
 else:

@@ -4,6 +4,16 @@ struct bf_t bf = {NULL, 0};
 char* frame = NULL;
 size_t frame_size;
 
+#ifdef _WIN32
+HANDLE* hconsole;
+
+BOOL WINAPI consoleHandler(DWORD signal){
+    if(signal == CTRL_C_EVENT)
+        exit(1);
+    return false;
+}
+#endif
+
 size_t parse_loop(const char* code, size_t start, bool buffering, double framerate){
     size_t remaining_closing_brackets = 0;
     size_t i;
@@ -31,11 +41,13 @@ size_t parse_loop(const char* code, size_t start, bool buffering, double framera
 void interpret_code(const char* code, bool buffering, double framerate){
     static size_t char_count = 0;
     #ifdef _WIN32
-        static struct timeb start = {0};
-        struct timeb end;
-        if(start.time == 0)
-            ftime(&start);
+        static LARGE_INTEGER start = {0};
+        LARGE_INTEGER end;
         timeBeginPeriod(1);
+        if(start.QuadPart == 0){
+            QueryPerformanceCounter(&start);
+            SetConsoleCtrlHandler(consoleHandler, true);
+        }
     #else
         static struct timespec start = {0};
         struct timespec end;
@@ -67,9 +79,9 @@ void interpret_code(const char* code, bool buffering, double framerate){
                 if(buffering){
                     frame[char_count++] = (char) bf.buf[bf.pos];
                     if(char_count == frame_size){
-                        mvprintw(0, 0, "%s", frame);
-                        refresh();
                         #ifndef _WIN32
+                            mvprintw(0, 0, "%s", frame);
+                            refresh();
                             clock_gettime(CLOCK_MONOTONIC_RAW, &end);
                             struct timespec req;
                             req.tv_sec = 0;
@@ -77,10 +89,15 @@ void interpret_code(const char* code, bool buffering, double framerate){
                             nanosleep(&req, NULL);
                             clock_gettime(CLOCK_MONOTONIC_RAW, &start);
                         #else
-                            ftime(&end);
-                            int mtime = ((1. / framerate * 1000) - ((end.time - start.time) * 1000. + (end.millitm - start.millitm)));
-                            Sleep(mtime < 0 ? 0 : mtime);
-                            ftime(&start);
+                            const COORD start_pos = {0, 0};
+                            LARGE_INTEGER frequency;
+                            QueryPerformanceFrequency(&frequency);
+                            SetConsoleCursorPosition(hconsole, start_pos);
+                            WriteConsole(hconsole, frame, frame_size, NULL, NULL);
+                            QueryPerformanceCounter(&end);
+                            while((double) ((end.QuadPart - start.QuadPart ) * 1000000000 / frequency.QuadPart) < 1. / framerate * 1000000000)
+                                QueryPerformanceCounter(&end);
+                            QueryPerformanceCounter(&start);
                         #endif
 
                         char_count = 0;
@@ -111,8 +128,10 @@ void end_bf(void){
     free(bf.buf);
     if(frame)
         free(frame);
-    fflush(stdout);
-    endwin();
+    #ifndef _WIN32
+        fflush(stdout);
+        endwin();
+    #endif
 }
 
 void set_frame_size(size_t s){
@@ -123,5 +142,9 @@ void set_frame_size(size_t s){
 }
 
 void init_display(void){
-    initscr();
+    #ifndef _WIN32
+        initscr();
+    #else
+        hconsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    #endif
 }

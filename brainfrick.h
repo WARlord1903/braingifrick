@@ -7,13 +7,13 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <math.h>
-#include <time.h>
 #include <sys/timeb.h>
-#include <unistd.h>
 #ifndef _WIN32
     #include <ncurses.h>
+    #include <time.h>
+    #include <unistd.h>
 #else
-    #include <ncurses/ncurses.h>
+    #include <windows.h>
 #endif
 
 #define BF_BUFFER_SIZE 30000

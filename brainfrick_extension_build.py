@@ -13,7 +13,7 @@ ffibuilder.set_source("_brainfrick",
     """
         #include "brainfrick.h"
     """,
-        sources=['brainfrick.c'], include_dirs=[] if platform.system() != 'Windows' else ['C:\\msys64\\mingw64\\include'], library_dirs=[] if platform.system() != 'Windows' else ['C:\\msys64\\mingw64\\lib'], libraries=['ncursesw'] if platform.system() != 'Windows' else ['ncursesw', 'winmm'])
+        sources=['brainfrick.c'], libraries=['ncursesw'] if platform.system() != 'Windows' else ['winmm'])
 
 
 if __name__ == "__main__":
