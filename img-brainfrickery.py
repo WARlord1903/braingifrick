@@ -293,11 +293,9 @@ audio_track = ''
 processes = multiprocessing.cpu_count()
 
 for i, a in enumerate(sys.argv):
-    if a in ['-h', '--help'] or len(sys.argv) == 1:
-        print('''
-usage: python(3) img-brainfrickery.py [options]
+    if a in ['--help'] or len(sys.argv) == 1:
+        print('''usage: python(3) img-brainfrickery.py [options]
 Options:
-    -h                  : Display these options
     -i [path]           : Input image/video path
     -o [path]           : Output brainfrick code file
     -r [path]           : Input brainfrick code file
@@ -309,7 +307,8 @@ Options:
     -l                  : Loop video playback
     -a                  : Extract audio from video and play (Only applicable with -i)
     --play-track [path] : Set playback track (Useful with -r)
-              ''')
+    --help              : Display these options
+''')
         sys.exit(0)
     elif a in ['-f', '--framerate']:
         framerate = float(sys.argv[i+1])
@@ -410,17 +409,17 @@ def image_to_ascii(image_path, arr=False):
         iwidth, iheight = image.size
         aspect_ratio = iheight / iwidth
         if height == -1 and width > 0:
-            height = int(aspect_ratio * width * 0.55)
-            image = image.resize((width, height))
+            height = int(width / aspect_ratio)
+            image = image.resize((width, int(height * 0.55)))
         elif width == -1 and height > 0:
-            width = int(aspect_ratio * height * 0.55)
-            image = image.resize((width, height))
+            width = int(aspect_ratio * height)
+            image = image.resize((width, int(height * 0.55)))
         elif width > 0 and height > 0:
-            image = image.resize((width, height))
+            image = image.resize((width, int(height * 0.55)))
         else:
             width = 100
-            height = int(aspect_ratio * width * 0.55)
-            image = image.resize((100, height))
+            height = int(width / aspect_ratio)
+            image = image.resize((100, int(height * 0.55)))
         image = image.convert('L')
 
         pixels = image.getdata()
