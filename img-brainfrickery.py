@@ -293,7 +293,25 @@ audio_track = ''
 processes = multiprocessing.cpu_count()
 
 for i, a in enumerate(sys.argv):
-    if a in ['-f', '--framerate']:
+    if a in ['-h', '--help'] or len(sys.argv) == 1:
+        print('''
+usage: python(3) img-brainfrickery.py [options]
+Options:
+    -h                  : Display these options
+    -i [path]           : Input image/video path
+    -o [path]           : Output brainfrick code file
+    -r [path]           : Input brainfrick code file
+    -w [int]            : Set video width  (Only applicable with -i)
+    -h [int]            : Set video height (Only applicable with -i)
+    -f [float]          : Set video framerate
+    -x                  : Invert luminosity values (Only applicable with -i)
+    -p [int]            : Number of threads to use to process video (Only applicable with -i)
+    -l                  : Loop video playback
+    -a                  : Extract audio from video and play (Only applicable with -i)
+    --play-track [path] : Set playback track (Useful with -r)
+              ''')
+        sys.exit(0)
+    elif a in ['-f', '--framerate']:
         framerate = float(sys.argv[i+1])
     elif a in ['-w', '--width']:
         width = int(sys.argv[i+1])
@@ -363,7 +381,7 @@ def image_to_ascii(image_path, arr=False):
             frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 
             process_list = []
-            for p in range(processes):
+            for p in range(processes if processes < frame_count else frame_count):
                 process_list.append(multiprocessing.Process(target=process_video, args=(image_path, frame_count, width, height, p, processes, frame_lists)))
 
             for p in process_list:
@@ -496,14 +514,14 @@ if __name__ == '__main__':
                         t.start()
                     else:
                         playsound(str(path / img_path)[:str(path / img_path).rfind('.')].replace('\\', '/') + '.wav', False)
-                    for frame in im:
-                        for line in frame:
-                            interpret_code(line.encode('ascii'), True, framerate)
-                    if t:
-                        t.join()
-                    if not loop:
-                        break
-                    init_bf()
+                for frame in im:
+                    for line in frame:
+                        interpret_code(line.encode('ascii'), True, framerate)
+                if t:
+                    t.join()
+                if not loop:
+                    break
+                init_bf()
         else:
             set_frame_size(''.join(im).count('.'))
             for line in im:
