@@ -7,9 +7,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <math.h>
-#include <sys/timeb.h>
 #ifndef _WIN32
     #include <ncurses.h>
+    #include <sys/timeb.h>
     #include <time.h>
     #include <unistd.h>
 #else

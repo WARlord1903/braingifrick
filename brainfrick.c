@@ -12,6 +12,33 @@ BOOL WINAPI consoleHandler(DWORD signal){
         exit(1);
     return false;
 }
+
+void cls(void){
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    CHAR_INFO fill;
+
+    GetConsoleScreenBufferInfo(hconsole, &csbi);
+
+    SMALL_RECT scrollRect = {0, 0, csbi.dwSize.X, csbi.dwSize.Y};
+    COORD scrollTarget = {0, (SHORT)(0 - csbi.dwSize.Y)};
+
+    fill.Char.UnicodeChar = TEXT(' ');
+    fill.Attributes = csbi.wAttributes;
+
+    ScrollConsoleScreenBuffer(hconsole, &scrollRect, NULL, scrollTarget, &fill);
+
+    csbi.dwCursorPosition.X = 0;
+    csbi.dwCursorPosition.Y = 0;
+
+    SetConsoleCursorPosition(hconsole, csbi.dwCursorPosition);
+}
+
+void print_callback(UINT uTimerID, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR p1, DWORD_PTR p2){
+    const COORD start_pos = {0, 0};
+    struct timer_data_t* ptr = (struct timer_data_t*) dwUser;
+    WriteConsole(hconsole, ptr->frame, ptr->frame_size, NULL, NULL);
+    SetConsoleCursorPosition(hconsole, start_pos);
+}
 #endif
 
 size_t parse_loop(const char* code, size_t start, bool buffering, double framerate){
@@ -41,13 +68,13 @@ size_t parse_loop(const char* code, size_t start, bool buffering, double framera
 void interpret_code(const char* code, bool buffering, double framerate){
     static size_t char_count = 0;
     #ifdef _WIN32
-        static LARGE_INTEGER start = {0};
-        LARGE_INTEGER end;
-        timeBeginPeriod(1);
-        if(start.QuadPart == 0){
-            QueryPerformanceCounter(&start);
+        static LARGE_INTEGER epoch = {0};
+        if(epoch.QuadPart == 0){
+            QueryPerformanceCounter(&epoch);
             SetConsoleCtrlHandler(consoleHandler, true);
         }
+        const double frame_time = 1. / framerate * 1000000000;
+        static size_t curr_frame;
     #else
         static struct timespec start = {0};
         struct timespec end;
@@ -90,14 +117,15 @@ void interpret_code(const char* code, bool buffering, double framerate){
                             clock_gettime(CLOCK_MONOTONIC_RAW, &start);
                         #else
                             const COORD start_pos = {0, 0};
+                            LARGE_INTEGER end;
                             LARGE_INTEGER frequency;
                             QueryPerformanceFrequency(&frequency);
                             SetConsoleCursorPosition(hconsole, start_pos);
                             WriteConsole(hconsole, frame, frame_size, NULL, NULL);
                             QueryPerformanceCounter(&end);
-                            while((double) ((end.QuadPart - start.QuadPart ) * 1000000000 / frequency.QuadPart) < 1. / framerate * 1000000000)
+                            while(epoch.QuadPart * 1000000000. / frequency.QuadPart + frame_time * curr_frame > end.QuadPart * 1000000000. / frequency.QuadPart)
                                 QueryPerformanceCounter(&end);
-                            QueryPerformanceCounter(&start);
+                            curr_frame++;
                         #endif
 
                         char_count = 0;
@@ -131,6 +159,8 @@ void end_bf(void){
     #ifndef _WIN32
         fflush(stdout);
         endwin();
+    #else
+        cls();
     #endif
 }
 
@@ -146,5 +176,6 @@ void init_display(void){
         initscr();
     #else
         hconsole = GetStdHandle(STD_OUTPUT_HANDLE);
+        cls();
     #endif
 }

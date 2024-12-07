@@ -294,7 +294,7 @@ processes = multiprocessing.cpu_count()
 
 for i, a in enumerate(sys.argv):
     if a in ['-f', '--framerate']:
-        framerate = int(sys.argv[i+1])
+        framerate = float(sys.argv[i+1])
     elif a in ['-w', '--width']:
         width = int(sys.argv[i+1])
     elif a in ['-h', '--height']:
