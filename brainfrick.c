@@ -32,13 +32,6 @@ void cls(void){
 
     SetConsoleCursorPosition(hconsole, csbi.dwCursorPosition);
 }
-
-void print_callback(UINT uTimerID, UINT uMsg, DWORD_PTR dwUser, DWORD_PTR p1, DWORD_PTR p2){
-    const COORD start_pos = {0, 0};
-    struct timer_data_t* ptr = (struct timer_data_t*) dwUser;
-    WriteConsole(hconsole, ptr->frame, ptr->frame_size, NULL, NULL);
-    SetConsoleCursorPosition(hconsole, start_pos);
-}
 #endif
 
 size_t parse_loop(const char* code, size_t start, bool buffering, double framerate){
