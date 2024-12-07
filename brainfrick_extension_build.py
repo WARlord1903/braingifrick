@@ -1,11 +1,10 @@
 from cffi import FFI
 import platform
+import os
 
 if platform.system() == 'Windows':
-    with open('setup.cfg', 'w') as f:
-        f.write('[build]\ncompiler=mingw32\n[build_ext]\ncompiler=mingw32')
-        f.close()
-        
+    os.environ["PATH"] += ';C:\\msys64\\mingw64\\bin;C:\\msys64\\usr\\bin'
+
 ffibuilder = FFI()
 
 ffibuilder.cdef('void interpret_code(const char*, bool, double);')
