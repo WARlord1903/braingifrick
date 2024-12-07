@@ -67,19 +67,18 @@ size_t parse_loop(const char* code, size_t start, bool buffering, double framera
 
 void interpret_code(const char* code, bool buffering, double framerate){
     static size_t char_count = 0;
+    const double frame_time = 1. / framerate * 1000000000;
+    static size_t curr_frame;
     #ifdef _WIN32
         static LARGE_INTEGER epoch = {0};
         if(epoch.QuadPart == 0){
             QueryPerformanceCounter(&epoch);
             SetConsoleCtrlHandler(consoleHandler, true);
         }
-        const double frame_time = 1. / framerate * 1000000000;
-        static size_t curr_frame;
     #else
-        static struct timespec start = {0};
-        struct timespec end;
-        if(start.tv_sec == 0)
-            clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+        static struct timespec epoch = {0};
+        if(epoch.tv_sec == 0)
+            clock_gettime(CLOCK_MONOTONIC_RAW, &epoch);
     #endif
 
     for(size_t i = 0; i < strlen(code); i++){
@@ -109,12 +108,10 @@ void interpret_code(const char* code, bool buffering, double framerate){
                         #ifndef _WIN32
                             mvprintw(0, 0, "%s", frame);
                             refresh();
+                            struct timespec end;
                             clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-                            struct timespec req;
-                            req.tv_sec = 0;
-                            req.tv_nsec = (1. / framerate * 1000000000) - (end.tv_nsec - start.tv_nsec);
-                            nanosleep(&req, NULL);
-                            clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+                            while(epoch.tv_sec * 1000000000 + epoch.tv_nsec + frame_time * curr_frame > end.tv_sec * 1000000000 + end.tv_nsec)
+                                clock_gettime(CLOCK_MONOTONIC_RAW, &end);
                         #else
                             const COORD start_pos = {0, 0};
                             LARGE_INTEGER end;
@@ -125,10 +122,10 @@ void interpret_code(const char* code, bool buffering, double framerate){
                             QueryPerformanceCounter(&end);
                             while(epoch.QuadPart * 1000000000. / frequency.QuadPart + frame_time * curr_frame > end.QuadPart * 1000000000. / frequency.QuadPart)
                                 QueryPerformanceCounter(&end);
-                            curr_frame++;
                         #endif
 
                         char_count = 0;
+                        curr_frame++;
                     }
                 }
                 else
