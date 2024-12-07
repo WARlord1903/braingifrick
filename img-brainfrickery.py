@@ -465,8 +465,7 @@ def ascii_to_brainfrick(ascii):
 
 
 if __name__ == '__main__':
-    s = None
-    play = None
+    t = None
     path = pathlib.Path(__file__).parent.resolve()
     init_bf()
     if replay == '':
@@ -500,6 +499,8 @@ if __name__ == '__main__':
                     for frame in im:
                         for line in frame:
                             interpret_code(line.encode('ascii'), True, framerate)
+                    if t:
+                        t.join()
                     if not loop:
                         break
                     init_bf()
@@ -524,6 +525,8 @@ if __name__ == '__main__':
                         playsound(str(path / audio_track).replace('\\', '/'),  False)
                 for frame in frames:
                     interpret_code(frame.encode('ascii'), (True if len(frames) > 1 else False), framerate)
+                if t:
+                    t.join()
                 if not loop or len(frames) == 1:
                     break
                 init_bf()
