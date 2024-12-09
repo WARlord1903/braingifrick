@@ -60,12 +60,16 @@ size_t parse_loop(const char* code, size_t start, bool buffering, double framera
 
 void interpret_code(const char* code, bool buffering, double framerate){
     static size_t char_count = 0;
-    const double frame_time = 1. / framerate * 1000000000;
+    #ifndef _WIN32
+        const double frame_time = 1. / framerate * 1000000000;
+    #else
+        const double frame_time = 1. / framerate * 1000;
+    #endif
     static size_t curr_frame;
     #ifdef _WIN32
-        static LARGE_INTEGER epoch = {0};
-        if(epoch.QuadPart == 0){
-            QueryPerformanceCounter(&epoch);
+        static DWORD epoch = 0;
+        if(epoch == 0){
+            epoch = timeGetTime();
             SetConsoleCtrlHandler(consoleHandler, true);
         }
     #else
@@ -106,15 +110,12 @@ void interpret_code(const char* code, bool buffering, double framerate){
                             while(epoch.tv_sec * 1000000000 + epoch.tv_nsec + frame_time * curr_frame > end.tv_sec * 1000000000 + end.tv_nsec)
                                 clock_gettime(CLOCK_MONOTONIC_RAW, &end);
                         #else
+                            timeBeginPeriod(1);
                             const COORD start_pos = {0, 0};
-                            LARGE_INTEGER end;
-                            LARGE_INTEGER frequency;
-                            QueryPerformanceFrequency(&frequency);
                             SetConsoleCursorPosition(hconsole, start_pos);
-                            WriteConsole(hconsole, frame, frame_size, NULL, NULL);
-                            QueryPerformanceCounter(&end);
-                            while(epoch.QuadPart * 1000000000. / frequency.QuadPart + frame_time * curr_frame > end.QuadPart * 1000000000. / frequency.QuadPart)
-                                QueryPerformanceCounter(&end);
+                            fputs(frame, stdout);
+                            while(timeGetTime() < epoch + (DWORD) (frame_time * curr_frame));
+                            timeEndPeriod(1);
                         #endif
 
                         char_count = 0;

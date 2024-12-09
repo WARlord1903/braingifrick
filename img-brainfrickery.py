@@ -478,7 +478,7 @@ def ascii_to_brainfrick(ascii):
 
             code += step
             prev_c = c
-    return (code + ('<' if code[-1] == '>' else '')).replace(']', ']\n').split('\n')
+    return (code + ('<' if code[-1] == '>' else ''))
 
 
 if __name__ == '__main__':
@@ -514,8 +514,7 @@ if __name__ == '__main__':
                     else:
                         playsound(str(path / img_path)[:str(path / img_path).rfind('.')].replace('\\', '/') + '.wav', False)
                 for frame in im:
-                    for line in frame:
-                        interpret_code(line.encode('ascii'), True, framerate)
+                    interpret_code(frame.encode('ascii'), True, framerate)
                 if t:
                     t.join()
                 if not loop:

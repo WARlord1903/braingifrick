@@ -15,6 +15,6 @@ if($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) 
 }
 else {
     Start-Process -Wait -FilePath "powershell" -ArgumentList "$('-File ""')$(Get-Location)$('\')$($MyInvocation.MyCommand.Name)$('""')" -Verb runAs
-    $env:Path += ';C:\msys64\mingw64\bin;C:\msys64\usr\bin'
+    $env:Path += ';C:\msys64\mingw64\bin'
     python brainfrick_extension_build.py
 }

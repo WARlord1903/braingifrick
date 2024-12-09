@@ -3,7 +3,7 @@ import platform
 import os
 
 if platform.system() == 'Windows':
-    os.environ["PATH"] += ';C:\\msys64\\mingw64\\bin;C:\\msys64\\usr\\bin'
+    os.environ["PATH"] += ';C:\\msys64\\mingw64\\bin'
 
 ffibuilder = FFI()
 
