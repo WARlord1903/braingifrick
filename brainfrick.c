@@ -60,19 +60,16 @@ size_t parse_loop(const char* code, size_t start, bool buffering, double framera
 
 void interpret_code(const char* code, bool buffering, double framerate){
     static size_t char_count = 0;
-    #ifndef _WIN32
-        const double frame_time = 1. / framerate * 1000000000;
-    #else
-        const double frame_time = 1. / framerate * 1000;
-    #endif
     static size_t curr_frame;
     #ifdef _WIN32
+        const double frame_time = 1. / framerate * 1000;
         static DWORD epoch = 0;
         if(epoch == 0){
             epoch = timeGetTime();
             SetConsoleCtrlHandler(consoleHandler, true);
         }
     #else
+        const double frame_time = 1. / framerate * 1000000000;
         static struct timespec epoch = {0};
         if(epoch.tv_sec == 0)
             clock_gettime(CLOCK_MONOTONIC_RAW, &epoch);
