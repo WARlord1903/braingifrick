@@ -3,7 +3,7 @@ import platform
 import os
 
 if platform.system() == 'Windows':
-    os.environ["PATH"] += ';C:\\msys64\\mingw64\\bin'
+    os.environ["PATH"] += 'C:\\msys64\\ucrt64\\bin;'
 
 ffibuilder = FFI()
 
@@ -17,7 +17,7 @@ ffibuilder.set_source("_brainfrick",
     """
         #include "brainfrick.h"
     """,
-        sources=['brainfrick.c'], extra_compile_args=['-O2'], libraries=['ncursesw'] if platform.system() != 'Windows' else ['winmm'])
+        sources=['brainfrick.c'], include_dirs=['C:\\msys64\\ucrt64\\include'] if platform.system() == 'Windows' else [], extra_compile_args=['-O2', '-march=native'], libraries=['ncursesw'] if platform.system() != 'Windows' else ['winmm', 'PowrProf'])
 
 
 if __name__ == "__main__":

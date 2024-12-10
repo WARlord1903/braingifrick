@@ -11,10 +11,9 @@ if(-Not (Test-Path -path ".\setup.cfg")){
 $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 if($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     winget install --id=MSYS2.MSYS2  -e 
-    C:\msys64\usr\bin\bash.exe -l -c "pacman -Syuu && pacman -S mingw-w64-x86_64-gcc"
+    C:\msys64\usr\bin\bash.exe -l -c "pacman -Syuu && pacman -S mingw-w64-ucrt-x86_64-gcc"
 }
 else {
     Start-Process -Wait -FilePath "powershell" -ArgumentList "$('-File ""')$(Get-Location)$('\')$($MyInvocation.MyCommand.Name)$('""')" -Verb runAs
-    $env:Path += ';C:\msys64\mingw64\bin'
     python brainfrick_extension_build.py
 }

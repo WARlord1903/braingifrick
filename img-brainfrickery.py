@@ -7,8 +7,7 @@ import os
 import subprocess
 import platform
 if platform.system() == 'Windows':
-    from winsound import PlaySound, SND_FILENAME
-    import threading
+    from winsound import PlaySound, SND_ASYNC
 else:
     from playsound import playsound
 from _brainfrick.lib import interpret_code, init_bf, end_bf, init_display, set_frame_size
@@ -509,8 +508,7 @@ if __name__ == '__main__':
             while True:
                 if extract_audio:
                     if platform.system() == 'Windows':
-                        t = threading.Thread(target=PlaySound, args=(str(path / img_path)[:str(path / img_path).rfind('.')].replace('\\', '/') + '.wav', SND_FILENAME))
-                        t.start()
+                        PlaySound(str(path / img_path)[:str(path / img_path).rfind('.')].replace('\\', '/') + '.wav', SND_ASYNC)
                     else:
                         playsound(str(path / img_path)[:str(path / img_path).rfind('.')].replace('\\', '/') + '.wav', False)
                 for frame in im:
@@ -535,8 +533,7 @@ if __name__ == '__main__':
             while True:
                 if audio_track != '':
                     if platform.system() == 'Windows':
-                        t = threading.Thread(target=PlaySound, args=(str(path / audio_track).replace('\\', '/'), SND_FILENAME))
-                        t.start()
+                        PlaySound(str(path / audio_track).replace('\\', '/'), SND_ASYNC)
                     else:
                         playsound(str(path / audio_track).replace('\\', '/'),  False)
                 for frame in frames:

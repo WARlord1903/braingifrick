@@ -6,12 +6,7 @@ size_t frame_size;
 
 #ifdef _WIN32
 HANDLE* hconsole;
-
-BOOL WINAPI consoleHandler(DWORD signal){
-    if(signal == CTRL_C_EVENT)
-        exit(1);
-    return false;
-}
+GUID* power_mode;
 
 void cls(void){
     CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -60,16 +55,20 @@ size_t parse_loop(const char* code, size_t start, bool buffering, double framera
 
 void interpret_code(const char* code, bool buffering, double framerate){
     static size_t char_count = 0;
+    #ifndef _WIN32
+        const double frame_time = 1. / framerate * 1000000000;
+    #else
+        const double frame_time = 1. / framerate * 1000;
+    #endif
     static size_t curr_frame;
     #ifdef _WIN32
-        const double frame_time = 1. / framerate * 1000;
         static DWORD epoch = 0;
         if(epoch == 0){
             epoch = timeGetTime();
-            SetConsoleCtrlHandler(consoleHandler, true);
+            PowerGetActiveScheme(NULL, &power_mode);
+            PowerSetActiveScheme(0, &GUID_MIN_POWER_SAVINGS);
         }
     #else
-        const double frame_time = 1. / framerate * 1000000000;
         static struct timespec epoch = {0};
         if(epoch.tv_sec == 0)
             clock_gettime(CLOCK_MONOTONIC_RAW, &epoch);
@@ -99,6 +98,7 @@ void interpret_code(const char* code, bool buffering, double framerate){
                 if(buffering){
                     frame[char_count++] = (char) bf.buf[bf.pos];
                     if(char_count == frame_size){
+                        frame[frame_size] = '\0';
                         #ifndef _WIN32
                             mvprintw(0, 0, "%s", frame);
                             refresh();
@@ -149,6 +149,7 @@ void end_bf(void){
         endwin();
     #else
         cls();
+        PowerSetActiveScheme(0, power_mode);
     #endif
 }
 

@@ -13,7 +13,10 @@
     #include <time.h>
     #include <unistd.h>
 #else
+    #include <initguid.h>
     #include <windows.h>
+    #include <powersetting.h>
+    #include <powrprof.h>
 #endif
 
 #define BF_BUFFER_SIZE 30000
