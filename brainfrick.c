@@ -6,7 +6,6 @@ size_t frame_size;
 
 #ifdef _WIN32
 HANDLE* hconsole;
-GUID* power_mode;
 
 void cls(void){
     CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -29,10 +28,10 @@ void cls(void){
 }
 #endif
 
-size_t parse_loop(const char* code, size_t start, bool buffering, double framerate){
+size_t parse_loop(const char* code, size_t length, size_t start, bool buffering, double framerate){
     size_t remaining_closing_brackets = 0;
     size_t i;
-    for(i = start; i < strlen(code); i++){
+    for(i = start; i < length; i++){
         if(code[i] == '[')
             remaining_closing_brackets++;
         else if(code[i] == ']')
@@ -47,13 +46,13 @@ size_t parse_loop(const char* code, size_t start, bool buffering, double framera
     loop_contents[i - start] = '\0';
 
     while(bf.buf[bf.pos])
-        interpret_code(loop_contents, buffering, framerate);
+        interpret_code(loop_contents, i - start + 1, buffering, framerate);
     
     free(loop_contents);
     return i;
 }
 
-void interpret_code(const char* code, bool buffering, double framerate){
+void interpret_code(const char* code, size_t length, bool buffering, double framerate){
     static size_t char_count = 0;
     #ifndef _WIN32
         const double frame_time = 1. / framerate * 1000000000;
@@ -63,18 +62,15 @@ void interpret_code(const char* code, bool buffering, double framerate){
     static size_t curr_frame;
     #ifdef _WIN32
         static DWORD epoch = 0;
-        if(epoch == 0){
+        if(epoch == 0)
             epoch = timeGetTime();
-            PowerGetActiveScheme(NULL, &power_mode);
-            PowerSetActiveScheme(0, &GUID_MIN_POWER_SAVINGS);
-        }
     #else
         static struct timespec epoch = {0};
         if(epoch.tv_sec == 0)
             clock_gettime(CLOCK_MONOTONIC_RAW, &epoch);
     #endif
 
-    for(size_t i = 0; i < strlen(code); i++){
+    for(size_t i = 0; i < length; i++){
         switch(code[i]){
             case '<':
                 if(bf.pos > 0)
@@ -126,7 +122,7 @@ void interpret_code(const char* code, bool buffering, double framerate){
                 bf.buf[bf.pos] = (uint8_t) fgetc(stdin);
                 break;
             case '[':
-                size_t end_pos = parse_loop(code, i, buffering, framerate);
+                size_t end_pos = parse_loop(code, length, i, buffering, framerate);
                 i = end_pos;
                 break;
         }
@@ -149,7 +145,6 @@ void end_bf(void){
         endwin();
     #else
         cls();
-        PowerSetActiveScheme(0, power_mode);
     #endif
 }
 

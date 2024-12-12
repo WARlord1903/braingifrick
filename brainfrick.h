@@ -13,8 +13,10 @@
     #include <time.h>
     #include <unistd.h>
 #else
+    #define WIN32_LEAN_AND_MEAN
     #include <initguid.h>
     #include <windows.h>
+    #include <timeapi.h>
     #include <powersetting.h>
     #include <powrprof.h>
 #endif
@@ -26,7 +28,12 @@ struct bf_t {
     size_t pos;
 };
 
-void interpret_code(const char*, bool, double);
+struct frame_t {
+    char* frame;
+    bool finished;
+};
+
+void interpret_code(const char*, size_t, bool, double);
 void init_bf(void);
 void end_bf(void);
 void set_frame_size(size_t);
