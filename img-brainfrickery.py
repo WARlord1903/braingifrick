@@ -490,11 +490,9 @@ if __name__ == '__main__':
         if out_path != '':
             with open(out_path, 'w') as file:
                 if isinstance(im, list):
-                    for frame in im:
-                        file.write('\n'.join(frame))
-                        file.write('\n')
+                    file.write('\n'.join(im))
                 else:
-                    file.write(''.join(im))
+                    file.write(im)
 
         if isinstance(im, list):
             set_frame_size(im[0].count('.'))
@@ -512,6 +510,8 @@ if __name__ == '__main__':
                         PlaySound(str(path / img_path)[:str(path / img_path).rfind('.')].replace('\\', '/') + '.wav', SND_ASYNC)
                     else:
                         playsound(str(path / img_path)[:str(path / img_path).rfind('.')].replace('\\', '/') + '.wav', False)
+                for c in code:
+                    interpret_code(c['str'].encode('ascii'), c['len'], True, framerate)
                 if not loop:
                     break
                 init_bf()
