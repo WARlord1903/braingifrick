@@ -33,7 +33,7 @@ struct frame_t {
     bool finished;
 };
 
-void interpret_code(const char*, size_t, bool, double);
+void interpret_code(const char*, bool, double);
 void init_bf(void);
 void end_bf(void);
 void set_frame_size(size_t);

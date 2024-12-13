@@ -5,11 +5,8 @@ from math import sqrt
 import time
 import os
 import subprocess
-import platform
-if platform.system() == 'Windows':
-    from winsound import PlaySound, SND_ASYNC
-else:
-    from playsound import playsound
+import sounddevice as sd
+import soundfile as sf
 from _brainfrick.lib import interpret_code, init_bf, end_bf, init_display, set_frame_size
 import atexit
 import multiprocessing
@@ -480,6 +477,10 @@ def ascii_to_brainfrick(ascii):
             prev_c = c
     return (code + ('<' if code[-1] == '>' else ''))
 
+def play_audio(filename):
+    data, fs = sf.read(str(path / audio_track).replace('\\', '/'))
+    sd.play(data, fs)
+
 
 if __name__ == '__main__':
     path = pathlib.Path(__file__).parent.resolve()
@@ -503,21 +504,21 @@ if __name__ == '__main__':
                 print('Done!')
             init_display()
 
-            code = [{'str': f, 'len': len(f)} for f in im]
             while True:
+                t = None
                 if extract_audio:
-                    if platform.system() == 'Windows':
-                        PlaySound(str(path / img_path)[:str(path / img_path).rfind('.')].replace('\\', '/') + '.wav', SND_ASYNC)
-                    else:
-                        playsound(str(path / img_path)[:str(path / img_path).rfind('.')].replace('\\', '/') + '.wav', False)
-                for c in code:
-                    interpret_code(c['str'].encode('ascii'), c['len'], True, framerate)
+                    t = threading.Thread(target=play_audio, daemon=True, args=(str(path / img_path)[:str(path / img_path).rfind('.')].replace('\\', '/') + '.wav',))
+                    t.start()
+                for frame in im:
+                    interpret_code(frame.encode('ascii'), True, framerate)
+                if not t is None:
+                    t.join()
                 if not loop:
                     break
                 init_bf()
         else:
             for line in im:
-                interpret_code(line.encode('ascii'), 0, False, 0)
+                interpret_code(line.encode('ascii'), False, 0)
 
     else:
         with open(replay, 'r') as file:
@@ -525,16 +526,16 @@ if __name__ == '__main__':
             if len(frames) > 1:
                 init_display()
                 set_frame_size(frames[0].count('.'))
-                
-            code = [{'str': f, 'len': len(f)} for f in frames]
+            
             while True:
+                t = None
                 if audio_track != '':
-                    if platform.system() == 'Windows':
-                        PlaySound(str(path / audio_track).replace('\\', '/'), SND_ASYNC)
-                    else:
-                        playsound(str(path / audio_track).replace('\\', '/'),  False)
-                for c in code:
-                    interpret_code(c['str'].encode('ascii'), c['len'], (True if len(frames) > 1 else False), framerate)
+                    t = threading.Thread(target=play_audio, daemon=True, args=(str(path / audio_track).replace('\\', '/'),))
+                    t.start()
+                for frame in frames:
+                    interpret_code(frame.encode('ascii'), (True if len(frames) > 1 else False), framerate)
+                if not t is None:
+                    t.join()
                 if not loop or len(frames) == 1:
                     break
                 init_bf()

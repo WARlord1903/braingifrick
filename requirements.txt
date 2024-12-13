@@ -3,6 +3,5 @@ opencv-python
 cffi
 pillow
 setuptools
-simpleaudio
-playsound
-pygobject
+sounddevice
+soundfile

@@ -28,10 +28,10 @@ void cls(void){
 }
 #endif
 
-size_t parse_loop(const char* code, size_t length, size_t start, bool buffering, double framerate){
+size_t parse_loop(const char* code, size_t start, bool buffering, double framerate){
     size_t remaining_closing_brackets = 0;
     size_t i;
-    for(i = start; i < length; i++){
+    for(i = start; code[i]; i++){
         if(code[i] == '[')
             remaining_closing_brackets++;
         else if(code[i] == ']')
@@ -46,13 +46,13 @@ size_t parse_loop(const char* code, size_t length, size_t start, bool buffering,
     loop_contents[i - start] = '\0';
 
     while(bf.buf[bf.pos])
-        interpret_code(loop_contents, i - start + 1, buffering, framerate);
+        interpret_code(loop_contents, buffering, framerate);
     
     free(loop_contents);
     return i;
 }
 
-void interpret_code(const char* code, size_t length, bool buffering, double framerate){
+void interpret_code(const char* code, bool buffering, double framerate){
     static size_t char_count = 0;
     #ifndef _WIN32
         const double frame_time = 1. / framerate * 1000000000;
@@ -70,7 +70,7 @@ void interpret_code(const char* code, size_t length, bool buffering, double fram
             clock_gettime(CLOCK_MONOTONIC_RAW, &epoch);
     #endif
 
-    for(size_t i = 0; i < length; i++){
+    for(size_t i = 0; code[i]; i++){
         switch(code[i]){
             case '<':
                 if(bf.pos > 0)
@@ -122,8 +122,7 @@ void interpret_code(const char* code, size_t length, bool buffering, double fram
                 bf.buf[bf.pos] = (uint8_t) fgetc(stdin);
                 break;
             case '[':
-                size_t end_pos = parse_loop(code, length, i, buffering, framerate);
-                i = end_pos;
+                i = parse_loop(code, i, buffering, framerate);
                 break;
         }
     }
@@ -144,7 +143,7 @@ void end_bf(void){
         fflush(stdout);
         endwin();
     #else
-        cls();
+        // cls();
     #endif
 }
 
